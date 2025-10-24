@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Faraji Name Picker</title>
   <style>
     body {
@@ -15,86 +15,32 @@
       height: 100vh;
       margin: 0;
     }
-
     .container {
       background: #fff;
       padding: 25px 30px;
       border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
       text-align: center;
       width: 90%;
       max-width: 520px;
     }
-
-    h1 {
-      color: #ff8a00;
-    }
-
-    select,
-    button,
-    input {
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      width: 100%;
-      font-size: 16px;
-    }
-
-    button {
-      background-color: #ff8a00;
-      color: white;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #e67600;
-    }
-
-    table {
-      width: 100%;
-      margin-top: 20px;
-      border-collapse: collapse;
-    }
-
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-    }
-
-    th {
-      background-color: #ff8a00;
-      color: white;
-    }
-
-    #result {
-      margin-top: 15px;
-      font-weight: bold;
-      color: #333;
-    }
-
-    #adminSection {
-      display: none;
-      margin-top: 20px;
-      background: #fff4e8;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #ffd9b3;
-    }
-
-    #adminSection button {
-      background-color: #d9534f;
-    }
-
-    #adminSection button:hover {
-      background-color: #c9302c;
-    }
+    h1 { color: #ff8a00; }
+    select, button, input { padding:10px; margin-top:10px; border-radius:5px; border:1px solid #ccc; width:100%; font-size:16px; }
+    button { background:#ff8a00; color:white; cursor:pointer; }
+    button:hover { background:#e67600; }
+    table { width:100%; margin-top:20px; border-collapse:collapse; }
+    th,td { border:1px solid #ddd; padding:8px; }
+    th { background:#ff8a00; color:white; }
+    #result { margin-top:15px; font-weight:bold; color:#333; min-height:1.4em; }
+    #adminSection { display:none; margin-top:20px; background:#fff4e8; padding:10px; border-radius:8px; border:1px solid #ffd9b3; }
+    #adminSection button { background-color:#d9534f; }
+    #adminSection button:hover { background-color:#c9302c; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Faraji Name Picker</h1>
-    <p>Select your name to pick a random one!</p>
+
     <select id="userSelect">
       <option value="">-- Select your name --</option>
       <option>Anyamba</option>
@@ -133,12 +79,14 @@
     </div>
   </div>
 
-  <!-- ✅ Firebase v11 Modular SDK -->
+  <!-- Modular Firebase (v11+) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import {
+      getDatabase, ref, get, set, onValue, runTransaction
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // 🔥 Initialize Firebase
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDHGNX0r_qvdWmJz_coi-6UC0yniaEKA60",
       authDomain: "faraji-753e8.firebaseapp.com",
@@ -151,90 +99,205 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+    const picksRef = ref(db, "picks");
 
-    // ✅ All names (alphabetically sorted)
+    // All members (sorted)
     const allNames = [
-      "Anyamba", "Cate", "Chibole", "Dan", "Diana", "Elsie", "Finny",
-      "Iminza", "Janet", "Jenn A", "Jenny O", "John O", "John W",
-      "Keith", "Marion", "Michael", "Moraa", "Yvonne", "Zawadi"
+      "Anyamba","Cate","Chibole","Dan","Diana","Elsie","Finny",
+      "Iminza","Janet","Jenn A","Jenny O","John O","John W",
+      "Keith","Marion","Michael","Moraa","Yvonne","Zawadi"
     ].sort();
 
     const userSelect = document.getElementById("userSelect");
-    const result = document.getElementById("result");
     const pickButton = document.getElementById("pickButton");
+    const result = document.getElementById("result");
     const finalResults = document.getElementById("finalResults");
     const adminLoginButton = document.getElementById("adminLoginButton");
     const adminPassword = document.getElementById("adminPassword");
     const adminSection = document.getElementById("adminSection");
     const resetButton = document.getElementById("resetButton");
 
-    // Populate dropdown initially
+    // Keep latest picks locally for quick checks (keeps UI snappy)
+    let latestPicks = {}; // object mapping picker -> picked
+
+    // Populate dropdown excluding used names
     function populateDropdown(usedNames = []) {
+      const usedSet = new Set(usedNames);
       userSelect.innerHTML = '<option value="">-- Select your name --</option>';
       allNames.forEach(name => {
         const option = document.createElement("option");
         option.value = name;
         option.textContent = name;
-        option.disabled = usedNames.includes(name);
+        option.disabled = usedSet.has(name);
         userSelect.appendChild(option);
       });
     }
 
-    // 🧠 Pick function
-    pickButton.onclick = async function() {
-      const user = userSelect.value;
-      if (!user) {
-        alert("Please select your name first!");
-        return;
+    // Update results table
+    function updateResultsTable(picksObj) {
+      latestPicks = picksObj || {};
+      let html = `<h3>All Picks:</h3><table><thead><tr><th>Picker</th><th>Picked</th></tr></thead><tbody>`;
+      for (const [picker, picked] of Object.entries(latestPicks)) {
+        html += `<tr><td>${picker}</td><td>${picked}</td></tr>`;
       }
-
-      const snapshot = await get(ref(db, "picks"));
-      const picks = snapshot.exists() ? snapshot.val() : {};
-
-      if (picks[user]) {
-        result.textContent = `You already picked: ${picks[user]}`;
-        return;
-      }
-
-      const usedNames = Object.values(picks);
-      const availableNames = allNames.filter(n => !usedNames.includes(n) && n !== user);
-
-      if (availableNames.length === 0) {
-        result.textContent = "All names have been picked!";
-        return;
-      }
-
-      const pickedName = availableNames[Math.floor(Math.random() * availableNames.length)];
-      await set(ref(db, `picks/${user}`), pickedName);
-      result.textContent = `You picked: ${pickedName}`;
-      pickButton.disabled = true;
-    };
-
-    // 👁️ Real-time updates
-    onValue(ref(db, "picks"), snapshot => {
-      const picks = snapshot.exists() ? snapshot.val() : {};
-      const usedNames = Object.values(picks);
-      populateDropdown(usedNames);
-      updateResultsTable(picks);
-    });
-
-    // 🧾 Display results in table
-    function updateResultsTable(picks) {
-      let html = `
-        <h3>All Picks:</h3>
-        <table>
-          <thead><tr><th>Member</th><th>Picked Name</th></tr></thead>
-          <tbody>
-      `;
-      for (const [user, picked] of Object.entries(picks)) {
-        html += `<tr><td>${user}</td><td>${picked}</td></tr>`;
-      }
-      html += "</tbody></table>";
+      html += `</tbody></table>`;
       finalResults.innerHTML = html;
     }
 
-    // 🔐 Admin Login
-    adminLoginButton.onclick = function() {
+    // Compute used names set (both pickers and picked)
+    function computeUsedNames(picksObj) {
+      const used = new Set();
+      for (const [picker, picked] of Object.entries(picksObj || {})) {
+        used.add(picker);
+        used.add(picked);
+      }
+      return used;
+    }
+
+    // If the currently selected user already picked, disable button and show result
+    function refreshButtonState() {
+      const user = userSelect.value;
+      if (!user) {
+        pickButton.disabled = true;
+        result.textContent = "";
+        return;
+      }
+      if (latestPicks[user]) {
+        pickButton.disabled = true;
+        result.textContent = `You already picked: ${latestPicks[user]}`;
+        return;
+      }
+
+      // Check if selected user is used (maybe picked by someone else)
+      const used = computeUsedNames(latestPicks);
+      if (used.has(user)) {
+        pickButton.disabled = true;
+        result.textContent = `You are already paired (or unavailable).`;
+        return;
+      }
+
+      // If round complete, disable
+      if (used.size >= allNames.length) {
+        pickButton.disabled = true;
+        result.textContent = "Round complete: all users have been paired.";
+        return;
+      }
+
+      // otherwise enable
+      pickButton.disabled = false;
+      result.textContent = "";
+    }
+
+    // Handle pick with transaction (prevents race conditions)
+    pickButton.onclick = async function () {
+      const user = userSelect.value;
+      if (!user) { alert("Please select your name first!"); return; }
+
+      // Transaction on the whole picks node so we can check and set atomically
+      try {
+        const txnResult = await runTransaction(picksRef, current => {
+          if (!current) current = {}; // start empty
+
+          // If this user already picked, abort transaction
+          if (current[user]) return; // returning undefined aborts transaction
+
+          // Build used names
+          const used = new Set();
+          for (const [p, picked] of Object.entries(current)) {
+            used.add(p);
+            used.add(picked);
+          }
+
+          // If user is already used (someone else picked them), abort
+          if (used.has(user)) return;
+
+          // Determine available names (not used and not the user themself)
+          const available = allNames.filter(n => !used.has(n) && n !== user);
+          if (available.length === 0) return; // nothing to pick, abort
+
+          // Choose random pick
+          const pick = available[Math.floor(Math.random() * available.length)];
+
+          // Set user's pick
+          current[user] = pick;
+
+          // Return updated data to commit
+          return current;
+        });
+
+        // txnResult.committed === true means the transaction wrote something
+        if (!txnResult.committed) {
+          // Re-check latest state and show a helpful message
+          const snap = await get(picksRef);
+          const latest = snap.exists() ? snap.val() : {};
+          latestPicks = latest;
+          updateResultsTable(latestPicks);
+
+          if (latestPicks[user]) {
+            result.textContent = `You already picked: ${latestPicks[user]}`;
+            pickButton.disabled = true;
+          } else {
+            // Possibly no available names left or conflict occurred
+            const used = computeUsedNames(latestPicks);
+            if (used.size >= allNames.length) {
+              result.textContent = "Round complete: all users have been paired.";
+              pickButton.disabled = true;
+            } else {
+              result.textContent = "Could not pick (race or no available names). Try again.";
+              pickButton.disabled = true; // require user to re-select after UI update
+            }
+          }
+          populateDropdown([...computeUsedNames(latestPicks)]);
+          return;
+        }
+
+        // Successful commit: read the new value to show what was picked
+        const after = txnResult.snapshot.val();
+        const picked = after[user];
+        latestPicks = after;
+        updateResultsTable(latestPicks);
+        populateDropdown([...computeUsedNames(latestPicks)]);
+        result.textContent = `You picked: ${picked}`;
+        pickButton.disabled = true;
+
+        // If round now complete, show message
+        const usedNow = computeUsedNames(latestPicks);
+        if (usedNow.size >= allNames.length) {
+          result.textContent = `You picked: ${picked} — Round complete: all users paired.`;
+        }
+      } catch (err) {
+        console.error("Transaction error:", err);
+        alert("An error occurred while picking. Check console for details.");
+      }
+    };
+
+    // Real-time listener to keep UI in sync
+    onValue(picksRef, snapshot => {
+      const picksObj = snapshot.exists() ? snapshot.val() : {};
+      latestPicks = picksObj;
+      updateResultsTable(latestPicks);
+
+      const used = computeUsedNames(latestPicks);
+      populateDropdown([...used]);
+
+      // If round complete, disable controls and show message
+      if (used.size >= allNames.length) {
+        result.textContent = "Round complete: all users have been paired.";
+        pickButton.disabled = true;
+        userSelect.disabled = true;
+      } else {
+        userSelect.disabled = false;
+      }
+
+      // Keep the pick button state aligned with current selection
+      refreshButtonState();
+    });
+
+    // Update button state whenever the selected user changes
+    userSelect.addEventListener("change", refreshButtonState);
+
+    // Admin login & reset
+    adminLoginButton.onclick = function () {
       const entered = adminPassword.value.trim();
       if (entered === "AnyiUnaweza") {
         adminSection.style.display = "block";
@@ -245,16 +308,24 @@
       }
     };
 
-    // 🔁 Admin Reset
-    resetButton.onclick = async function() {
-      if (confirm("Are you sure you want to reset all picks?")) {
-        await set(ref(db, "picks"), {});
-        alert("All picks have been reset!");
+    resetButton.onclick = async function () {
+      if (!confirm("Are you sure you want to reset all picks?")) return;
+      try {
+        await set(picksRef, {}); // wipe picks
+        result.textContent = "All picks have been reset. You can pick again.";
+        pickButton.disabled = true; // require re-selection after reset
+        userSelect.disabled = false;
+      } catch (err) {
+        console.error("Reset error:", err);
+        alert("Could not reset picks. Check console.");
       }
     };
 
-    // Initial load
+    // Initial setup: populate dropdown (none used yet) and disable pick button until selection
     populateDropdown();
+    pickButton.disabled = true;
+    result.textContent = "";
+
   </script>
 </body>
 </html>
