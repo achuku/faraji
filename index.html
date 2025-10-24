@@ -72,12 +72,27 @@
       font-weight: bold;
       color: #333;
     }
+
+    #resetButton {
+      background-color: #444;
+      color: white;
+      width: auto;
+      margin-top: 20px;
+      padding: 10px 20px;
+      border-radius: 8px;
+    }
+
+    #resetButton:hover {
+      background-color: #222;
+    }
+
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Faraji Name Picker</h1>
     <p>Select your name to pick a random one!</p>
+
     <select id="userSelect">
       <option value="">-- Select your name --</option>
     </select>
@@ -85,12 +100,13 @@
     <button id="pickButton">Pick A Name</button>
     <p id="result"></p>
     <div id="finalResults"></div>
+    <button id="resetButton">Admin: Reset All Picks</button>
   </div>
 
   <!-- Firebase Modular SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { getDatabase, ref, get, set, remove, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
     // 🔥 Firebase Config
     const firebaseConfig = {
@@ -107,78 +123,4 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // ✅ Alphabetically Sorted Name List
-    const allNames = [
-      "Anyamba", "Cate", "Chibole", "Dan", "Diana", "Elsie",
-      "Finny", "Iminza", "Janet", "Jenn A", "Jenny O", "John O",
-      "John W", "Keith", "Marion", "Moraa", "Yvonne", "Zawadi"
-    ].sort();
-
-    const userSelect = document.getElementById("userSelect");
-    const result = document.getElementById("result");
-    const pickButton = document.getElementById("pickButton");
-    const finalResults = document.getElementById("finalResults");
-
-    // Populate dropdown
-    allNames.forEach(name => {
-      const option = document.createElement("option");
-      option.value = name;
-      option.textContent = name;
-      userSelect.appendChild(option);
-    });
-
-    // 🧠 Pick function
-    pickButton.onclick = async () => {
-      const user = userSelect.value;
-      if (!user) {
-        alert("Please select your name first!");
-        return;
-      }
-
-      const picksRef = ref(db, "picks");
-      const snapshot = await get(picksRef);
-      const picks = snapshot.exists() ? snapshot.val() : {};
-
-      if (picks[user]) {
-        result.textContent = `You already picked: ${picks[user]}`;
-        return;
-      }
-
-      const usedNames = Object.values(picks);
-      const availableNames = allNames.filter(n => !usedNames.includes(n) && n !== user);
-
-      if (availableNames.length === 0) {
-        result.textContent = "All names have been picked!";
-        return;
-      }
-
-      const pickedName = availableNames[Math.floor(Math.random() * availableNames.length)];
-      await set(ref(db, `picks/${user}`), pickedName);
-      result.textContent = `You picked: ${pickedName}`;
-    };
-
-    // 🔁 Real-time updates
-    onValue(ref(db, "picks"), snapshot => {
-      const picks = snapshot.exists() ? snapshot.val() : {};
-      updateResultsTable(picks);
-    });
-
-    // 🧾 Display results
-    function updateResultsTable(picks) {
-      let html = `
-        <h3>All Picks:</h3>
-        <table>
-          <thead><tr><th>Member</th><th>Picked Name</th></tr></thead>
-          <tbody>
-      `;
-
-      for (const [user, picked] of Object.entries(picks)) {
-        html += `<tr><td>${user}</td><td>${picked}</td></tr>`;
-      }
-
-      html += "</tbody></table>";
-      finalResults.innerHTML = html;
-    }
-  </script>
-</body>
-</html>
+    // ✅ Alphabetica
