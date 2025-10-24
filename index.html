@@ -15,7 +15,6 @@
       height: 100vh;
       margin: 0;
     }
-
     .container {
       background: #fff;
       padding: 25px 30px;
@@ -23,13 +22,11 @@
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
       text-align: center;
       width: 90%;
-      max-width: 500px;
+      max-width: 520px;
     }
-
     h1 {
       color: #ff8a00;
     }
-
     select,
     button {
       padding: 10px;
@@ -39,53 +36,36 @@
       width: 100%;
       font-size: 16px;
     }
-
     button {
       background-color: #ff8a00;
       color: white;
       cursor: pointer;
     }
-
     button:hover {
       background-color: #e67600;
     }
-
     table {
       width: 100%;
       margin-top: 20px;
       border-collapse: collapse;
     }
-
-    th,
-    td {
+    th, td {
       border: 1px solid #ddd;
       padding: 8px;
     }
-
     th {
       background-color: #ff8a00;
       color: white;
     }
-
     #result {
       margin-top: 15px;
       font-weight: bold;
       color: #333;
     }
-
-    #resetButton {
-      background-color: #444;
-      color: white;
-      width: auto;
+    #adminSection {
       margin-top: 20px;
-      padding: 10px 20px;
-      border-radius: 8px;
+      display: none;
     }
-
-    #resetButton:hover {
-      background-color: #222;
-    }
-
   </style>
 </head>
 <body>
@@ -95,20 +75,43 @@
 
     <select id="userSelect">
       <option value="">-- Select your name --</option>
+      <option>Anyamba</option>
+      <option>Cate</option>
+      <option>Chibole</option>
+      <option>Dan</option>
+      <option>Diana</option>
+      <option>Elsie</option>
+      <option>Finny</option>
+      <option>Iminza</option>
+      <option>Janet</option>
+      <option>Jenn A</option>
+      <option>Jenny O</option>
+      <option>John O</option>
+      <option>John W</option>
+      <option>Keith</option>
+      <option>Marion</option>
+      <option>Michael</option>
+      <option>Moraa</option>
+      <option>Yvonne</option>
+      <option>Zawadi</option>
     </select>
 
     <button id="pickButton">Pick A Name</button>
     <p id="result"></p>
     <div id="finalResults"></div>
-    <button id="resetButton">Admin: Reset All Picks</button>
+
+    <div id="adminSection">
+      <h3>Admin View</h3>
+      <div id="adminResults"></div>
+    </div>
   </div>
 
-  <!-- Firebase Modular SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, get, set, remove, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
 
-    // 🔥 Firebase Config
+  <script>
+    // 🔥 Initialize Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyDHGNX0r_qvdWmJz_coi-6UC0yniaEKA60",
       authDomain: "faraji-753e8.firebaseapp.com",
@@ -118,9 +121,107 @@
       messagingSenderId: "204226283175",
       appId: "1:204226283175:web:dcefff6116a351b54a3d82"
     };
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    // 🔧 Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    // ✅ All names (alphabetically sorted)
+    const allNames = [
+      "Anyamba", "Cate", "Chibole", "Dan", "Diana", "Elsie", "Finny",
+      "Iminza", "Janet", "Jenn A", "Jenny O", "John O", "John W",
+      "Keith", "Marion", "Michael", "Moraa", "Yvonne", "Zawadi"
+    ].sort();
 
-    // ✅ Alphabetica
+    const userSelect = document.getElementById("userSelect");
+    const result = document.getElementById("result");
+    const pickButton = document.getElementById("pickButton");
+    const finalResults = document.getElementById("finalResults");
+    const adminSection = document.getElementById("adminSection");
+    const adminResults = document.getElementById("adminResults");
+
+    // Populate dropdown
+    allNames.forEach(name => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      userSelect.appendChild(option);
+    });
+
+    // 🧠 Pick function
+    pickButton.onclick = async function() {
+      const user = userSelect.value;
+      if (!user) {
+        alert("Please select your name first!");
+        return;
+      }
+
+      // Admin access
+      if (user.toLowerCase() === "admin") {
+        const pass = prompt("Enter admin password:");
+        if (pass === "AnyiUnaweza") {
+          adminSection.style.display = "block";
+        } else {
+          alert("Incorrect password!");
+        }
+        return;
+      }
+
+      const snapshot = await db.ref("picks").get();
+      const picks = snapshot.exists() ? snapshot.val() : {};
+
+      if (picks[user]) {
+        result.textContent = `You already picked: ${picks[user]}`;
+        return;
+      }
+
+      const usedNames = Object.values(picks);
+      const availableNames = allNames.filter(n => !usedNames.includes(n) && n !== user);
+
+      if (availableNames.length === 0) {
+        result.textContent = "All names have been picked!";
+        return;
+      }
+
+      const pickedName = availableNames[Math.floor(Math.random() * availableNames.length)];
+      await db.ref(`picks/${user}`).set(pickedName);
+      result.textContent = `You picked: ${pickedName}`;
+      pickButton.disabled = true; // disable after pick
+    };
+
+    // 👁️ Real-time updates
+    db.ref("picks").on("value", snapshot => {
+      const picks = snapshot.exists() ? snapshot.val() : {};
+      updateResultsTable(picks);
+      updateAdminTable(picks);
+    });
+
+    // 🧾 Display results
+    function updateResultsTable(picks) {
+      let html = `
+        <h3>All Picks:</h3>
+        <table>
+          <thead><tr><th>Member</th><th>Picked Name</th></tr></thead>
+          <tbody>
+      `;
+      for (const [user, picked] of Object.entries(picks)) {
+        html += `<tr><td>${user}</td><td>${picked}</td></tr>`;
+      }
+      html += "</tbody></table>";
+      finalResults.innerHTML = html;
+    }
+
+    // 👑 Admin view
+    function updateAdminTable(picks) {
+      let html = `
+        <table>
+          <thead><tr><th>Member</th><th>Picked Name</th></tr></thead>
+          <tbody>
+      `;
+      for (const [user, picked] of Object.entries(picks)) {
+        html += `<tr><td>${user}</td><td>${picked}</td></tr>`;
+      }
+      html += "</tbody></table>";
+      adminResults.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
