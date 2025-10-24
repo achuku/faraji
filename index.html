@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Faraji</title>
+  <title>Faraji Name Picker</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -82,17 +82,17 @@
       <option value="">-- Select your name --</option>
     </select>
 
-    <button id="pickButton">Pick Random Name</button>
+    <button id="pickButton">Pick A Name</button>
     <p id="result"></p>
     <div id="finalResults"></div>
   </div>
 
-  <!-- ✅ Firebase Modular SDKs -->
+  <!-- Firebase Modular SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // 1️⃣ Firebase Config
+    // 🔥 Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyDHGNX0r_qvdWmJz_coi-6UC0yniaEKA60",
       authDomain: "faraji-753e8.firebaseapp.com",
@@ -103,16 +103,16 @@
       appId: "1:204226283175:web:dcefff6116a351b54a3d82"
     };
 
-    // 2️⃣ Initialize Firebase
+    // 🔧 Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // 3️⃣ Setup
+    // ✅ Alphabetically Sorted Name List
     const allNames = [
-      "Anyamba", "Iminza", "Diana", "John W", "John O", "Cate",
-      "Finny", "Elsie", "Dan", "Janet", "Yvonne", "Marion",
-      "Jenn A", "Jenny O", "Keith", "Michael"
-    ];
+      "Anyamba", "Cate", "Chibole", "Dan", "Diana", "Elsie",
+      "Finny", "Iminza", "Janet", "Jenn A", "Jenny O", "John O",
+      "John W", "Keith", "Marion", "Moraa", "Yvonne", "Zawadi"
+    ].sort();
 
     const userSelect = document.getElementById("userSelect");
     const result = document.getElementById("result");
@@ -127,7 +127,7 @@
       userSelect.appendChild(option);
     });
 
-    // 4️⃣ Pick function
+    // 🧠 Pick function
     pickButton.onclick = async () => {
       const user = userSelect.value;
       if (!user) {
@@ -157,13 +157,13 @@
       result.textContent = `You picked: ${pickedName}`;
     };
 
-    // 5️⃣ Real-time updates
+    // 🔁 Real-time updates
     onValue(ref(db, "picks"), snapshot => {
       const picks = snapshot.exists() ? snapshot.val() : {};
       updateResultsTable(picks);
     });
 
-    // 6️⃣ Display results
+    // 🧾 Display results
     function updateResultsTable(picks) {
       let html = `
         <h3>All Picks:</h3>
