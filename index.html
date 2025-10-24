@@ -15,6 +15,7 @@
       height: 100vh;
       margin: 0;
     }
+
     .container {
       background: #fff;
       padding: 25px 30px;
@@ -24,11 +25,14 @@
       width: 90%;
       max-width: 520px;
     }
+
     h1 {
       color: #ff8a00;
     }
+
     select,
-    button {
+    button,
+    input {
       padding: 10px;
       margin-top: 10px;
       border-radius: 5px;
@@ -36,35 +40,54 @@
       width: 100%;
       font-size: 16px;
     }
+
     button {
       background-color: #ff8a00;
       color: white;
       cursor: pointer;
     }
+
     button:hover {
       background-color: #e67600;
     }
+
     table {
       width: 100%;
       margin-top: 20px;
       border-collapse: collapse;
     }
+
     th, td {
       border: 1px solid #ddd;
       padding: 8px;
     }
+
     th {
       background-color: #ff8a00;
       color: white;
     }
+
     #result {
       margin-top: 15px;
       font-weight: bold;
       color: #333;
     }
+
     #adminSection {
-      margin-top: 20px;
       display: none;
+      margin-top: 20px;
+      background: #fff4e8;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ffd9b3;
+    }
+
+    #adminSection button {
+      background-color: #d9534f;
+    }
+
+    #adminSection button:hover {
+      background-color: #c9302c;
     }
   </style>
 </head>
@@ -72,7 +95,6 @@
   <div class="container">
     <h1>Faraji Name Picker</h1>
     <p>Select your name to pick a random one!</p>
-
     <select id="userSelect">
       <option value="">-- Select your name --</option>
       <option>Anyamba</option>
@@ -100,9 +122,14 @@
     <p id="result"></p>
     <div id="finalResults"></div>
 
+    <hr />
+    <h3>Admin Access</h3>
+    <input type="password" id="adminPassword" placeholder="Enter admin password" />
+    <button id="adminLoginButton">Login</button>
+
     <div id="adminSection">
-      <h3>Admin View</h3>
-      <div id="adminResults"></div>
+      <p><strong>Admin Mode:</strong> You can reset all picks.</p>
+      <button id="resetButton">Reset All Picks</button>
     </div>
   </div>
 
@@ -135,33 +162,28 @@
     const result = document.getElementById("result");
     const pickButton = document.getElementById("pickButton");
     const finalResults = document.getElementById("finalResults");
+    const adminLoginButton = document.getElementById("adminLoginButton");
+    const adminPassword = document.getElementById("adminPassword");
     const adminSection = document.getElementById("adminSection");
-    const adminResults = document.getElementById("adminResults");
+    const resetButton = document.getElementById("resetButton");
 
-    // Populate dropdown
-    allNames.forEach(name => {
-      const option = document.createElement("option");
-      option.value = name;
-      option.textContent = name;
-      userSelect.appendChild(option);
-    });
+    // Populate dropdown initially
+    function populateDropdown(usedNames = []) {
+      userSelect.innerHTML = '<option value="">-- Select your name --</option>';
+      allNames.forEach(name => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        option.disabled = usedNames.includes(name);
+        userSelect.appendChild(option);
+      });
+    }
 
     // 🧠 Pick function
     pickButton.onclick = async function() {
       const user = userSelect.value;
       if (!user) {
         alert("Please select your name first!");
-        return;
-      }
-
-      // Admin access
-      if (user.toLowerCase() === "admin") {
-        const pass = prompt("Enter admin password:");
-        if (pass === "AnyiUnaweza") {
-          adminSection.style.display = "block";
-        } else {
-          alert("Incorrect password!");
-        }
         return;
       }
 
@@ -181,20 +203,22 @@
         return;
       }
 
+      // Random pick from remaining available names
       const pickedName = availableNames[Math.floor(Math.random() * availableNames.length)];
       await db.ref(`picks/${user}`).set(pickedName);
       result.textContent = `You picked: ${pickedName}`;
-      pickButton.disabled = true; // disable after pick
+      pickButton.disabled = true;
     };
 
     // 👁️ Real-time updates
     db.ref("picks").on("value", snapshot => {
       const picks = snapshot.exists() ? snapshot.val() : {};
+      const usedNames = Object.values(picks);
+      populateDropdown(usedNames);
       updateResultsTable(picks);
-      updateAdminTable(picks);
     });
 
-    // 🧾 Display results
+    // 🧾 Display results in table
     function updateResultsTable(picks) {
       let html = `
         <h3>All Picks:</h3>
@@ -209,19 +233,28 @@
       finalResults.innerHTML = html;
     }
 
-    // 👑 Admin view
-    function updateAdminTable(picks) {
-      let html = `
-        <table>
-          <thead><tr><th>Member</th><th>Picked Name</th></tr></thead>
-          <tbody>
-      `;
-      for (const [user, picked] of Object.entries(picks)) {
-        html += `<tr><td>${user}</td><td>${picked}</td></tr>`;
+    // 🔐 Admin Login
+    adminLoginButton.onclick = function() {
+      const entered = adminPassword.value.trim();
+      if (entered === "AnyiUnaweza") {
+        adminSection.style.display = "block";
+        adminPassword.value = "";
+        adminLoginButton.style.display = "none";
+      } else {
+        alert("Incorrect password!");
       }
-      html += "</tbody></table>";
-      adminResults.innerHTML = html;
-    }
+    };
+
+    // 🔁 Admin Reset
+    resetButton.onclick = async function() {
+      if (confirm("Are you sure you want to reset all picks?")) {
+        await db.ref("picks").set({});
+        alert("All picks have been reset!");
+      }
+    };
+
+    // Initial load
+    populateDropdown();
   </script>
 </body>
 </html>
