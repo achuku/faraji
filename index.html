@@ -80,17 +80,6 @@
     <p>Select your name to pick a random one!</p>
     <select id="userSelect">
       <option value="">-- Select your name --</option>
-      <option>Anyamba</option>
-      <option>Iminza</option>
-      <option>Diana</option>
-      <option>John W</option>
-      <option>John O</option>
-      <option>Dan</option>
-      <option>Marion</option>
-      <option>Finny</option>
-      <option>Elsie</option>
-      <option>Jenn A</option>
-      <option>Jenny O</option>
     </select>
 
     <button id="pickButton">Pick Random Name</button>
@@ -98,12 +87,12 @@
     <div id="finalResults"></div>
   </div>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
+  <!-- ✅ Firebase Modular SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-  <script>
-    // 🔥 1. Initialize Firebase (replace with your own config)
+    // 1️⃣ Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyDHGNX0r_qvdWmJz_coi-6UC0yniaEKA60",
       authDomain: "faraji-753e8.firebaseapp.com",
@@ -113,10 +102,12 @@
       messagingSenderId: "204226283175",
       appId: "1:204226283175:web:dcefff6116a351b54a3d82"
     };
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
 
-    // 2. Setup
+    // 2️⃣ Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // 3️⃣ Setup
     const allNames = [
       "Anyamba", "Iminza", "Diana", "John W", "John O", "Cate",
       "Finny", "Elsie", "Dan", "Janet", "Yvonne", "Marion",
@@ -128,6 +119,7 @@
     const pickButton = document.getElementById("pickButton");
     const finalResults = document.getElementById("finalResults");
 
+    // Populate dropdown
     allNames.forEach(name => {
       const option = document.createElement("option");
       option.value = name;
@@ -135,15 +127,16 @@
       userSelect.appendChild(option);
     });
 
-    // 3. Pick function
-    pickButton.onclick = async function() {
+    // 4️⃣ Pick function
+    pickButton.onclick = async () => {
       const user = userSelect.value;
       if (!user) {
         alert("Please select your name first!");
         return;
       }
 
-      const snapshot = await firebase.database().ref("picks").get();
+      const picksRef = ref(db, "picks");
+      const snapshot = await get(picksRef);
       const picks = snapshot.exists() ? snapshot.val() : {};
 
       if (picks[user]) {
@@ -160,17 +153,17 @@
       }
 
       const pickedName = availableNames[Math.floor(Math.random() * availableNames.length)];
-      await firebase.database().ref(`picks/${user}`).set(pickedName);
+      await set(ref(db, `picks/${user}`), pickedName);
       result.textContent = `You picked: ${pickedName}`;
     };
 
-    // 4. Real-time updates
-    firebase.database().ref("picks").on("value", snapshot => {
+    // 5️⃣ Real-time updates
+    onValue(ref(db, "picks"), snapshot => {
       const picks = snapshot.exists() ? snapshot.val() : {};
       updateResultsTable(picks);
     });
 
-    // 5. Display results in a table
+    // 6️⃣ Display results
     function updateResultsTable(picks) {
       let html = `
         <h3>All Picks:</h3>
