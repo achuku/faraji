@@ -137,124 +137,119 @@
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
 
-  <script>
-    // 🔥 Initialize Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyDHGNX0r_qvdWmJz_coi-6UC0yniaEKA60",
-      authDomain: "faraji-753e8.firebaseapp.com",
-      databaseURL: "https://faraji-753e8-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "faraji-753e8",
-      storageBucket: "faraji-753e8.firebasestorage.app",
-      messagingSenderId: "204226283175",
-      appId: "1:204226283175:web:dcefff6116a351b54a3d82"
-    };
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // ✅ All names (alphabetically sorted)
-    const allNames = [
-      "Anyamba", "Cate", "Chibole", "Dan", "Diana", "Elsie", "Finny",
-      "Iminza", "Janet", "Jenn A", "Jenny O", "John O", "John W",
-      "Keith", "Marion", "Michael", "Moraa", "Yvonne", "Zawadi"
-    ].sort();
+  const firebaseConfig = {
+    apiKey: "AIzaSyDHGNX0r_qvdWmJz_coi-6UC0yniaEKA60",
+    authDomain: "faraji-753e8.firebaseapp.com",
+    databaseURL: "https://faraji-753e8-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "faraji-753e8",
+    storageBucket: "faraji-753e8.firebasestorage.app",
+    messagingSenderId: "204226283175",
+    appId: "1:204226283175:web:dcefff6116a351b54a3d82"
+  };
 
-    const userSelect = document.getElementById("userSelect");
-    const result = document.getElementById("result");
-    const pickButton = document.getElementById("pickButton");
-    const finalResults = document.getElementById("finalResults");
-    const adminLoginButton = document.getElementById("adminLoginButton");
-    const adminPassword = document.getElementById("adminPassword");
-    const adminSection = document.getElementById("adminSection");
-    const resetButton = document.getElementById("resetButton");
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-    // Populate dropdown initially
-    function populateDropdown(usedNames = []) {
-      userSelect.innerHTML = '<option value="">-- Select your name --</option>';
-      allNames.forEach(name => {
-        const option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
-        option.disabled = usedNames.includes(name);
-        userSelect.appendChild(option);
-      });
-    }
+  const allNames = [
+    "Anyamba", "Cate", "Chibole", "Dan", "Diana", "Elsie", "Finny",
+    "Iminza", "Janet", "Jenn A", "Jenny O", "John O", "John W",
+    "Keith", "Marion", "Michael", "Moraa", "Yvonne", "Zawadi"
+  ].sort();
 
-    // 🧠 Pick function
-    pickButton.onclick = async function() {
-      const user = userSelect.value;
-      if (!user) {
-        alert("Please select your name first!");
-        return;
-      }
+  const userSelect = document.getElementById("userSelect");
+  const result = document.getElementById("result");
+  const pickButton = document.getElementById("pickButton");
+  const finalResults = document.getElementById("finalResults");
+  const adminLoginButton = document.getElementById("adminLoginButton");
+  const adminPassword = document.getElementById("adminPassword");
+  const adminSection = document.getElementById("adminSection");
+  const resetButton = document.getElementById("resetButton");
 
-      const snapshot = await db.ref("picks").get();
-      const picks = snapshot.exists() ? snapshot.val() : {};
-
-      if (picks[user]) {
-        result.textContent = `You already picked: ${picks[user]}`;
-        return;
-      }
-
-      const usedNames = Object.values(picks);
-      const availableNames = allNames.filter(n => !usedNames.includes(n) && n !== user);
-
-      if (availableNames.length === 0) {
-        result.textContent = "All names have been picked!";
-        return;
-      }
-
-      // Random pick from remaining available names
-      const pickedName = availableNames[Math.floor(Math.random() * availableNames.length)];
-      await db.ref(`picks/${user}`).set(pickedName);
-      result.textContent = `You picked: ${pickedName}`;
-      pickButton.disabled = true;
-    };
-
-    // 👁️ Real-time updates
-    db.ref("picks").on("value", snapshot => {
-      const picks = snapshot.exists() ? snapshot.val() : {};
-      const usedNames = Object.values(picks);
-      populateDropdown(usedNames);
-      updateResultsTable(picks);
+  function populateDropdown(usedNames = []) {
+    userSelect.innerHTML = '<option value="">-- Select your name --</option>';
+    allNames.forEach(name => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      option.disabled = usedNames.includes(name);
+      userSelect.appendChild(option);
     });
+  }
 
-    // 🧾 Display results in table
-    function updateResultsTable(picks) {
-      let html = `
-        <h3>All Picks:</h3>
-        <table>
-          <thead><tr><th>Member</th><th>Picked Name</th></tr></thead>
-          <tbody>
-      `;
-      for (const [user, picked] of Object.entries(picks)) {
-        html += `<tr><td>${user}</td><td>${picked}</td></tr>`;
-      }
-      html += "</tbody></table>";
-      finalResults.innerHTML = html;
+  pickButton.onclick = async function() {
+    const user = userSelect.value;
+    if (!user) {
+      alert("Please select your name first!");
+      return;
     }
 
-    // 🔐 Admin Login
-    adminLoginButton.onclick = function() {
-      const entered = adminPassword.value.trim();
-      if (entered === "AnyiUnaweza") {
-        adminSection.style.display = "block";
-        adminPassword.value = "";
-        adminLoginButton.style.display = "none";
-      } else {
-        alert("Incorrect password!");
-      }
-    };
+    const snapshot = await get(ref(db, "picks"));
+    const picks = snapshot.exists() ? snapshot.val() : {};
 
-    // 🔁 Admin Reset
-    resetButton.onclick = async function() {
-      if (confirm("Are you sure you want to reset all picks?")) {
-        await db.ref("picks").set({});
-        alert("All picks have been reset!");
-      }
-    };
+    if (picks[user]) {
+      result.textContent = `You already picked: ${picks[user]}`;
+      return;
+    }
 
-    // Initial load
-    populateDropdown();
-  </script>
+    const usedNames = Object.values(picks);
+    const availableNames = allNames.filter(n => !usedNames.includes(n) && n !== user);
+
+    if (availableNames.length === 0) {
+      result.textContent = "All names have been picked!";
+      return;
+    }
+
+    const pickedName = availableNames[Math.floor(Math.random() * availableNames.length)];
+    await set(ref(db, `picks/${user}`), pickedName);
+    result.textContent = `You picked: ${pickedName}`;
+    pickButton.disabled = true;
+  };
+
+  onValue(ref(db, "picks"), snapshot => {
+    const picks = snapshot.exists() ? snapshot.val() : {};
+    const usedNames = Object.values(picks);
+    populateDropdown(usedNames);
+    updateResultsTable(picks);
+  });
+
+  function updateResultsTable(picks) {
+    let html = `
+      <h3>All Picks:</h3>
+      <table>
+        <thead><tr><th>Member</th><th>Picked Name</th></tr></thead>
+        <tbody>
+    `;
+    for (const [user, picked] of Object.entries(picks)) {
+      html += `<tr><td>${user}</td><td>${picked}</td></tr>`;
+    }
+    html += "</tbody></table>";
+    finalResults.innerHTML = html;
+  }
+
+  adminLoginButton.onclick = function() {
+    const entered = adminPassword.value.trim();
+    if (entered === "AnyiUnaweza") {
+      adminSection.style.display = "block";
+      adminPassword.value = "";
+      adminLoginButton.style.display = "none";
+    } else {
+      alert("Incorrect password!");
+    }
+  };
+
+  resetButton.onclick = async function() {
+    if (confirm("Are you sure you want to reset all picks?")) {
+      await set(ref(db, "picks"), {});
+      alert("All picks have been reset!");
+    }
+  };
+
+  populateDropdown();
+</script>
+
 </body>
 </html>
