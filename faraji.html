@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Name Picker (Realtime)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #fff9f3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      background: #fff;
+      padding: 25px 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 90%;
+      max-width: 500px;
+    }
+
+    h1 {
+      color: #ff8a00;
+    }
+
+    select,
+    button {
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      width: 100%;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #ff8a00;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #e67600;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+
+    th {
+      background-color: #ff8a00;
+      color: white;
+    }
+
+    #result {
+      margin-top: 15px;
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 Name Picker</h1>
+    <p>Select your name to pick a random one!</p>
+
+    <select id="userSelect">
+      <option value="">-- Select your name --</option>
+    </select>
+
+    <button id="pickButton">Pick Random Name</button>
+    <p id="result"></p>
+    <div id="finalResults"></div>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
+
+  <script>
+    // 🔥 1. Initialize Firebase (replace with your own config)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDHGNX0r_qvdWmJz_coi-6UC0yniaEKA60",
+      authDomain: "faraji-753e8.firebaseapp.com",
+      databaseURL: "https://faraji-753e8-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "faraji-753e8",
+      storageBucket: "faraji-753e8.firebasestorage.app",
+      messagingSenderId: "204226283175",
+      appId: "1:204226283175:web:dcefff6116a351b54a3d82"
+    };
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 2. Setup
+    const allNames = [
+      "Anyamba", "Iminza", "Diana", "John W", "John O", "Cate",
+      "Finny", "Elsie", "Dan", "Janet", "Yvonne", "Marion",
+      "Jenn A", "Jenny O", "Keith", "Michael"
+    ];
+
+    const userSelect = document.getElementById("userSelect");
+    const result = document.getElementById("result");
+    const pickButton = document.getElementById("pickButton");
+    const finalResults = document.getElementById("finalResults");
+
+    allNames.forEach(name => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      userSelect.appendChild(option);
+    });
+
+    // 3. Pick function
+    pickButton.onclick = async function() {
+      const user = userSelect.value;
+      if (!user) {
+        alert("Please select your name first!");
+        return;
+      }
+
+      const snapshot = await firebase.database().ref("picks").get();
+      const picks = snapshot.exists() ? snapshot.val() : {};
+
+      if (picks[user]) {
+        result.textContent = `You already picked: ${picks[user]}`;
+        return;
+      }
+
+      const usedNames = Object.values(picks);
+      const availableNames = allNames.filter(n => !usedNames.includes(n) && n !== user);
+
+      if (availableNames.length === 0) {
+        result.textContent = "All names have been picked!";
+        return;
+      }
+
+      const pickedName = availableNames[Math.floor(Math.random() * availableNames.length)];
+      await firebase.database().ref(`picks/${user}`).set(pickedName);
+      result.textContent = `You picked: ${pickedName}`;
+    };
+
+    // 4. Real-time updates
+    firebase.database().ref("picks").on("value", snapshot => {
+      const picks = snapshot.exists() ? snapshot.val() : {};
+      updateResultsTable(picks);
+    });
+
+    // 5. Display results in a table
+    function updateResultsTable(picks) {
+      let html = `
+        <h3>All Picks:</h3>
+        <table>
+          <thead><tr><th>Member</th><th>Picked Name</th></tr></thead>
+          <tbody>
+      `;
+
+      for (const [user, picked] of Object.entries(picks)) {
+        html += `<tr><td>${user}</td><td>${picked}</td></tr>`;
+      }
+
+      html += "</tbody></table>";
+      finalResults.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
